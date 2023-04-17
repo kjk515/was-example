@@ -16,26 +16,27 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
 import java.util.logging.Level;
-import java.util.logging.Logger;
 
 import com.jin.was.config.ServerConfig;
 import com.jin.was.servlet.HttpServletRequest;
 import com.jin.was.servlet.HttpServletResponse;
 import com.jin.was.servlet.SimpleServlet;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RequestProcessor implements Runnable {
 
-    private static final Logger logger = Logger.getLogger(RequestProcessor.class.getCanonicalName());
+    private static final Logger logger = LoggerFactory.getLogger(RequestProcessor.class);
+    private static final List<String> FORBIDDEN_CONTENT_TYPES = List.of(
+            "application/octet-stream"
+    );
+    private static final String SERVLET_RESPONSE_CONTENT_TYPE = "text/plain; charset=utf-8";
+    private static final String ERROR_RESPONSE_CONTENT_TYPE = "text/html; charset=utf-8";
+
     private String rootPath;
     private String indexFileName = "index.html";
     private Socket connection;
     private File responseFile;
-    private static final List<String> FORBIDDEN_CONTENT_TYPES = List.of(
-        "application/octet-stream"
-    );
-
-    private static final String SERVLET_RESPONSE_CONTENT_TYPE = "text/plain; charset=utf-8";
-    private static final String ERROR_RESPONSE_CONTENT_TYPE = "text/html; charset=utf-8";
 
     public RequestProcessor(String rootPath, String indexFileName, Socket connection) {
         this.rootPath = rootPath;
@@ -77,9 +78,9 @@ public class RequestProcessor implements Runnable {
             sendFile(contentType, outputStream, requestHeader);
 
         } catch (IOException ex) {
-            logger.log(Level.WARNING, "Error talking to " + connection.getRemoteSocketAddress(), ex);
+            logger.warn("Error talking to: {} ", connection.getRemoteSocketAddress(), ex);
         } catch (Exception ex) {
-            logger.log(Level.WARNING, "Exception ", ex);
+            logger.warn("Exception ", ex);
         } finally {
             try {
                 connection.close();
