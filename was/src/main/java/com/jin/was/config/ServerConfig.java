@@ -45,16 +45,27 @@ public record ServerConfig(
 
     public String appBasePath(String hostName) {
         Optional<Host> optionalHost = this.hosts.stream().filter(it -> it.name.equals(hostName)).findFirst();
-        String appBase = DEFAULT_APP_BASE;
+        String appBase = null;
         if (optionalHost.isPresent()) {
             appBase = optionalHost.get().appBase;
         }
+        if (appBase == null) {
+            appBase = DEFAULT_APP_BASE;
+        }
+
         return getClass().getResource(PathUtils.affixRootPath(appBase)).getPath();
     }
 
     public String errorPagePath(String hostName, ResponseCode responseCode) {
-        Host host = this.hosts.stream().filter(it -> it.name.equals(hostName)).findFirst().get(); // TODO NULL
-        String errorPage = host.errorReportValve().get(responseCode.code());
-        return errorPage != null ? errorPage : DEFAULT_ERROR_PAGE_ROOT + PathUtils.affixRootPath(responseCode.code()) + ".html";
+        Optional<Host> host = this.hosts.stream().filter(it -> it.name.equals(hostName)).findFirst();
+        String errorPage = null;
+        if (host.isPresent() && host.get().errorReportValve() != null) {
+            errorPage = host.get().errorReportValve().get(responseCode.code());
+        }
+        if (errorPage == null) {
+            errorPage = DEFAULT_ERROR_PAGE_ROOT;
+        }
+
+        return errorPage + PathUtils.affixRootPath(responseCode.code()) + ".html";
     }
 }

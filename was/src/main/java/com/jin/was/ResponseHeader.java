@@ -13,14 +13,8 @@ public record ResponseHeader(
     int contentLength,
     Date date,
     String server
-    /*
-        TODO : encoding 설정
-        response.setContentType("text/html; charset=utf-8");
-        response.setCharacterEncoding("utf-8");
-        request.setCharacterEncoding("utf-8");
-     */
 ) {
-    private static final String SERVER = "JHTTP 2.0"; // TODO
+    private static final String SERVER = "JHTTP 2.0";
 
     public ResponseHeader(String version, ResponseCode responseCode, String contentType, int contentLength) {
         this(version, responseCode, contentType, contentLength, new Date(), ResponseHeader.SERVER);

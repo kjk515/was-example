@@ -15,14 +15,14 @@ import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.List;
-import java.util.logging.Level;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import com.jin.was.config.ServerConfig;
 import com.jin.was.servlet.HttpServletRequest;
 import com.jin.was.servlet.HttpServletResponse;
 import com.jin.was.servlet.SimpleServlet;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public class RequestProcessor implements Runnable {
 
