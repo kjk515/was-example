@@ -15,6 +15,7 @@ import java.net.Socket;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -27,6 +28,11 @@ public class RequestProcessor implements Runnable {
     private String rootPath;
     private String indexFileName = "index.html";
     private Socket connection;
+    private File requestFile;
+
+    private static final List<String> FORBIDDEN_CONTENT_TYPES = List.of(
+        "application/octet-stream"
+    );
 
     public RequestProcessor(String rootPath, String indexFileName, Socket connection) {
         this.rootPath = rootPath;
@@ -40,14 +46,25 @@ public class RequestProcessor implements Runnable {
     public void run() {
         try {
             OutputStream outputStream = new BufferedOutputStream(connection.getOutputStream());
-            RequestHeader requestHeader = RequestHeader.of(new InputStreamReader((connection.getInputStream()), StandardCharsets.UTF_8), indexFileName);
+            RequestHeader requestHeader = RequestHeader.of(new InputStreamReader((connection.getInputStream()), StandardCharsets.UTF_8));
 
-            if (!requestHeader.isGetMethod()) {
-                send501(outputStream, requestHeader);
+            String matchedRootPath = rootPath != null ? rootPath : ServerConfig.getInstance().appBasePath(requestHeader.host());
+            requestFile = new File(matchedRootPath, requestHeader.url());
+            if (requestFile.getCanonicalPath().equals(matchedRootPath)) {
+                requestFile = new File(matchedRootPath, indexFileName);
+            }
+
+            if (!requestFile.getCanonicalPath().startsWith(matchedRootPath)) {
+                sendError(outputStream, requestHeader, ErrorCode.FORBIDDEN);
                 return;
             }
 
-            String contentType = URLConnection.getFileNameMap().getContentTypeFor(requestHeader.url());
+            if (!requestHeader.isGetMethod()) {
+                sendError(outputStream, requestHeader, ErrorCode.NOT_IMPLEMENTED);
+                return;
+            }
+
+            String contentType = URLConnection.getFileNameMap().getContentTypeFor(requestFile.getName());
 
             if (contentType == null) {
                 if (sendServlet(outputStream, requestHeader)) {
@@ -95,7 +112,7 @@ public class RequestProcessor implements Runnable {
             return true;
         } catch (ClassNotFoundException e) {
             logger.warning("Class Not Found!!!!!!!!!!!!!!");
-            send404(outputStream, requestHeader);
+            sendError(outputStream, requestHeader, ErrorCode.NOT_FOUND);
         } catch (InvocationTargetException | NoSuchMethodException | InstantiationException | IllegalAccessException e) {
             logger.warning("!!!!!!!!!!!!!!!!");
         }
@@ -104,13 +121,13 @@ public class RequestProcessor implements Runnable {
     }
 
     private void sendFile(String contentType, OutputStream outputStream, RequestHeader requestHeader) throws IOException {
-        String matchedRootDirectory = rootPath != null ? rootPath : ServerConfig.getInstance().appBasePath(requestHeader.host());
-        File theFile = new File(matchedRootDirectory, requestHeader.url());
+        if (FORBIDDEN_CONTENT_TYPES.contains(contentType)) {
+            sendError(outputStream, requestHeader, ErrorCode.FORBIDDEN);
+            return;
+        }
 
-        if (theFile.canRead()
-            // Don't let clients outside the document root // TODO root 접근 권한제어?
-            && theFile.getCanonicalPath().startsWith(matchedRootDirectory)) {
-            byte[] theData = Files.readAllBytes(theFile.toPath());
+        if (requestFile.canRead()) {
+            byte[] theData = Files.readAllBytes(requestFile.toPath());
             if (requestHeader.version().startsWith("HTTP/")) {
                 new ResponseHeader(requestHeader.version() + " 200 OK", contentType, theData.length)
                     .writeHeader(outputStream);
@@ -118,26 +135,15 @@ public class RequestProcessor implements Runnable {
             outputStream.write(theData);
             outputStream.flush();
         } else {
-            send404(outputStream, requestHeader);
+            sendError(outputStream, requestHeader, ErrorCode.NOT_FOUND);
         }
     }
 
-    private void send501(OutputStream outputStream, RequestHeader requestHeader) throws IOException {
-        byte[] bytes = getClass().getClassLoader().getResourceAsStream(ServerConfig.getInstance().errorPagePath(requestHeader.host(), ErrorCode.NOT_IMPLEMENTED)).readAllBytes();
+    private void sendError(OutputStream outputStream, RequestHeader requestHeader, ErrorCode errorCode) throws IOException {
+        byte[] bytes = getClass().getClassLoader().getResourceAsStream(ServerConfig.getInstance().errorPagePath(requestHeader.host(), errorCode)).readAllBytes();
 
         if (requestHeader.isHttpRequest()) {
-            new ResponseHeader(requestHeader.version() + " 501 Not Implemented", "text/html", bytes.length)
-                .writeHeader(outputStream);
-        }
-        outputStream.write(bytes);
-        outputStream.flush();
-    }
-
-    private void send404(OutputStream outputStream, RequestHeader requestHeader) throws IOException {
-        byte[] bytes = getClass().getClassLoader().getResourceAsStream(ServerConfig.getInstance().errorPagePath(requestHeader.host(), ErrorCode.NOT_FOUND)).readAllBytes();
-
-        if (requestHeader.isHttpRequest()) {
-            new ResponseHeader(requestHeader.version() + " 404 File Not Found", "text/html", bytes.length)
+            new ResponseHeader(requestHeader.version() + " " + errorCode.response, "text/html", bytes.length)
                 .writeHeader(outputStream);
         }
         outputStream.write(bytes);

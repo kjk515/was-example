@@ -70,7 +70,7 @@ public class HttpServer {
 
     public static void main(String[] args) {
         String rootPath = null;
-        int port = 0;
+        int port = -1;
 
         if (args.length > 0) {
             rootPath = args[0];

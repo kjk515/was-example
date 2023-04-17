@@ -13,7 +13,7 @@ public record RequestHeader(
     String host
 ) {
 
-    public static RequestHeader of(InputStreamReader inputStreamReader, String indexFileName) throws IOException {
+    public static RequestHeader of(InputStreamReader inputStreamReader) throws IOException {
         BufferedReader reader = new BufferedReader(inputStreamReader);
         String line;
         List<String> requestContents = new ArrayList<>();
@@ -29,7 +29,7 @@ public record RequestHeader(
 
         return new RequestHeader(
             tokens[0],
-            tokens[1].equals("/") ? indexFileName : tokens[1].substring(1),
+            tokens[1].substring(1),
             (tokens.length > 2) ? tokens[2] : null,
             host
         );
