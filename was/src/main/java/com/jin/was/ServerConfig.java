@@ -1,5 +1,11 @@
 package com.jin.was;
 
+import java.io.IOException;
+import java.util.List;
+import java.util.Map;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 public record ServerConfig(
     List<Host> hosts,
     Connector connector
@@ -53,6 +59,9 @@ public record ServerConfig(
 
     public String errorPagePath(String hostName, ErrorCode errorCode) {
         Host host = this.hosts.stream().filter(it -> it.name.equals(hostName)).findFirst().get(); // TODO NULL
-        if (host.errorReportValve())
+        if (host.errorReportValve().isEmpty()) {
+            return "html/" + errorCode.code + ".html";
+        }
+        return "html/" + errorCode.code + ".html";
     }
 }

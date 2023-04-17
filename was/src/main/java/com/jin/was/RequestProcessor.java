@@ -1,19 +1,25 @@
 package com.jin.was;
 
-import com.jin.was.servlet.HttpServletRequest;
-import com.jin.was.servlet.HttpServletResponse;
-
-import java.io.*;
+import java.io.BufferedOutputStream;
+import java.io.File;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.StringWriter;
+import java.io.Writer;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.Socket;
-import java.net.URISyntaxException;
 import java.net.URLConnection;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+
+import com.jin.was.servlet.HttpServletRequest;
+import com.jin.was.servlet.HttpServletResponse;
 
 public class RequestProcessor implements Runnable {
 
@@ -63,7 +69,7 @@ public class RequestProcessor implements Runnable {
         }
     }
 
-    private boolean sendServlet(OutputStream outputStream, RequestHeader requestHeader) throws IOException, URISyntaxException {
+    private boolean sendServlet(OutputStream outputStream, RequestHeader requestHeader) throws IOException {
         Writer writer = new OutputStreamWriter(outputStream);
         try {
             String className = requestHeader.url(); // TODO rootDirectory??
@@ -117,7 +123,7 @@ public class RequestProcessor implements Runnable {
     }
 
     private void send501(OutputStream outputStream, RequestHeader requestHeader) throws IOException {
-        byte[] bytes = getClass().getClassLoader().getResourceAsStream("html/501.html").readAllBytes();
+        byte[] bytes = getClass().getClassLoader().getResourceAsStream(ServerConfig.getInstance().errorPagePath(requestHeader.host(), ErrorCode.NOT_IMPLEMENTED)).readAllBytes();
 
         if (requestHeader.isHttpRequest()) {
             new ResponseHeader(requestHeader.version() + " 501 Not Implemented", "text/html", bytes.length)
@@ -128,7 +134,7 @@ public class RequestProcessor implements Runnable {
     }
 
     private void send404(OutputStream outputStream, RequestHeader requestHeader) throws IOException {
-        byte[] bytes = ServerConfig.getInstance().errorPagePath(requestHeader.host()) getClass().getClassLoader().getResourceAsStream("html/404.html").readAllBytes();
+        byte[] bytes = getClass().getClassLoader().getResourceAsStream(ServerConfig.getInstance().errorPagePath(requestHeader.host(), ErrorCode.NOT_FOUND)).readAllBytes();
 
         if (requestHeader.isHttpRequest()) {
             new ResponseHeader(requestHeader.version() + " 404 File Not Found", "text/html", bytes.length)
