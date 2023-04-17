@@ -77,53 +77,57 @@ public class RequestProcessor implements Runnable {
             }
             sendFile(contentType, outputStream, requestHeader);
 
-        } catch (IOException ex) {
-            logger.warn("Error talking to: {} ", connection.getRemoteSocketAddress(), ex);
-        } catch (Exception ex) {
-            logger.warn("Exception ", ex);
+        } catch (IOException e) {
+            logger.warn("Error talking to: {} ", connection.getRemoteSocketAddress(), e);
+        } catch (Exception e) {
+            logger.error("RequestProcessor run exception ", e);
         } finally {
             try {
                 connection.close();
-            } catch (IOException ex) {
+            } catch (IOException e) {
+                logger.error("Error connection socket", e);
             }
         }
     }
 
     private boolean sendServlet(OutputStream outputStream, RequestHeader requestHeader) throws IOException {
-        Writer writer = new OutputStreamWriter(outputStream);
-        try {
-            String className = requestHeader.url();
-            Class<?> clazz = Class.forName(className);
-            if (!SimpleServlet.class.isAssignableFrom(clazz)) {
-                return false;
-            }
+        String className = requestHeader.url();
+        Class<?> clazz = null;
 
+        try {
+            clazz = Class.forName(className);
+        } catch (ClassNotFoundException e) {
+            logger.info("Not found in Servlets");
+        }
+        if (clazz == null || !SimpleServlet.class.isAssignableFrom(clazz)) {
+            return false;
+        }
+
+        Writer responseWriter = new StringWriter();
+        HttpServletRequest req = new HttpServletRequest(requestHeader.parameter());
+        HttpServletResponse res = new HttpServletResponse(responseWriter);
+
+        try {
             Object servlet = clazz.getConstructor().newInstance();
             Method clazzMethod = clazz.getMethod(SimpleServlet.GET_METHOD, HttpServletRequest.class, HttpServletResponse.class);
 
-            HttpServletRequest req = new HttpServletRequest(requestHeader.parameter());
-            Writer responseWriter = new StringWriter();
-            HttpServletResponse res = new HttpServletResponse(responseWriter);
-
             clazzMethod.invoke(servlet, req, res);
 
-            if (requestHeader.isHttpRequest()) {
-                new ResponseHeader(requestHeader.version(), ResponseCode.OK, SERVLET_RESPONSE_CONTENT_TYPE, responseWriter.toString().getBytes().length)
-                    .writeHeader(outputStream);
-            }
-
-            writer.write(responseWriter.toString());
-            writer.flush();
-
-            return true;
-
-        } catch (ClassNotFoundException e) {
-            logger.info("Not found in Servlets");
         } catch (InvocationTargetException | NoSuchMethodException | InstantiationException | IllegalAccessException e) {
-            throw new RuntimeException("Servlet instantiation error");
+            throw new RuntimeException("Servlet instantiation error", e);
         }
 
-        return false;
+        if (requestHeader.isHttpRequest()) {
+            int responseLength = responseWriter.toString().getBytes().length;
+            new ResponseHeader(requestHeader.version(), ResponseCode.OK, SERVLET_RESPONSE_CONTENT_TYPE, responseLength)
+                    .writeHeader(outputStream);
+        }
+
+        Writer writer = new OutputStreamWriter(outputStream);
+        writer.write(responseWriter.toString());
+        writer.flush();
+
+        return true;
     }
 
     private void sendFile(String contentType, OutputStream outputStream, RequestHeader requestHeader) throws IOException {

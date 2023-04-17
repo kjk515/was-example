@@ -53,19 +53,20 @@ public class HttpServer {
         ExecutorService pool = Executors.newFixedThreadPool(NUM_THREADS);
 
         try (ServerSocket server = new ServerSocket(port)) {
-            logger.info("Accepting connections on port " + server.getLocalPort());
-            logger.info("Document Root: " + rootPath);
+            logger.info("Accepting connections on port: {}", server.getLocalPort());
+            logger.info("Document Root: {}", rootPath);
 
             while (true) {
                 logger.info("while");
 
                 try {
                     Socket request = server.accept();
-                    logger.info("request: " + request);
+                    logger.info("request: {}", request);
+
                     Runnable r = new RequestProcessor(rootPath, INDEX_FILE, request);
                     pool.submit(r);
-                } catch (IOException ex) {
-                    logger.warn("Error accepting connection", ex);
+                } catch (IOException e) {
+                    logger.warn("Error accepting connection", e);
                 }
             }
         }
