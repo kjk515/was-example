@@ -9,6 +9,8 @@ import java.util.concurrent.Executors;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.jin.was.config.ServerConfig;
+
 /**
  * Created by cybaek on 15. 5. 22..
  */
@@ -76,7 +78,7 @@ public class HttpServer {
             rootPath = args[0];
         }
 
-        if (args.length >= 2) {
+        if (args.length > 1) {
             port = Integer.parseInt(args[1]);
         }
 

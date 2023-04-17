@@ -7,7 +7,8 @@ import java.io.Writer;
 import java.util.Date;
 
 public record ResponseHeader(
-    String responseCode,
+    String version,
+    ResponseCode responseCode,
     String contentType,
     int contentLength,
     Date date,
@@ -21,13 +22,13 @@ public record ResponseHeader(
 ) {
     private static final String SERVER = "JHTTP 2.0"; // TODO
 
-    public ResponseHeader(String responseCode, String contentType, int contentLength) {
-        this(responseCode, contentType, contentLength, new Date(), ResponseHeader.SERVER);
+    public ResponseHeader(String version, ResponseCode responseCode, String contentType, int contentLength) {
+        this(version, responseCode, contentType, contentLength, new Date(), ResponseHeader.SERVER);
     }
 
     public void writeHeader(OutputStream outputStream) throws IOException {
         Writer writer = new OutputStreamWriter(outputStream);
-        writer.write(responseCode + "\r\n");
+        writer.write(version + " " + responseCode.contents + "\r\n");
         writer.write("Date: " + date + "\r\n");
         writer.write("Server: " + server + "\r\n");
         writer.write("Content-length: " + contentLength + "\r\n");

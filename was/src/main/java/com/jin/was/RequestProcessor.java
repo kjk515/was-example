@@ -8,7 +8,6 @@ import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.StringWriter;
 import java.io.Writer;
-import java.lang.reflect.Constructor;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
 import java.net.Socket;
@@ -19,20 +18,24 @@ import java.util.List;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import com.jin.was.config.ServerConfig;
 import com.jin.was.servlet.HttpServletRequest;
 import com.jin.was.servlet.HttpServletResponse;
+import com.jin.was.servlet.SimpleServlet;
 
 public class RequestProcessor implements Runnable {
 
-    private final static Logger logger = Logger.getLogger(RequestProcessor.class.getCanonicalName());
+    private static final Logger logger = Logger.getLogger(RequestProcessor.class.getCanonicalName());
     private String rootPath;
     private String indexFileName = "index.html";
     private Socket connection;
-    private File requestFile;
-
+    private File responseFile;
     private static final List<String> FORBIDDEN_CONTENT_TYPES = List.of(
         "application/octet-stream"
     );
+
+    private static final String SERVLET_RESPONSE_CONTENT_TYPE = "text/plain; charset=utf-8";
+    private static final String ERROR_RESPONSE_CONTENT_TYPE = "text/html; charset=utf-8";
 
     public RequestProcessor(String rootPath, String indexFileName, Socket connection) {
         this.rootPath = rootPath;
@@ -48,36 +51,35 @@ public class RequestProcessor implements Runnable {
             OutputStream outputStream = new BufferedOutputStream(connection.getOutputStream());
             RequestHeader requestHeader = RequestHeader.of(new InputStreamReader((connection.getInputStream()), StandardCharsets.UTF_8));
 
-            String matchedRootPath = rootPath != null ? rootPath : ServerConfig.getInstance().appBasePath(requestHeader.host());
-            requestFile = new File(matchedRootPath, requestHeader.url());
-            if (requestFile.getCanonicalPath().equals(matchedRootPath)) {
-                requestFile = new File(matchedRootPath, indexFileName);
-            }
-
-            if (!requestFile.getCanonicalPath().startsWith(matchedRootPath)) {
-                sendError(outputStream, requestHeader, ErrorCode.FORBIDDEN);
-                return;
-            }
-
             if (!requestHeader.isGetMethod()) {
-                sendError(outputStream, requestHeader, ErrorCode.NOT_IMPLEMENTED);
+                sendError(outputStream, requestHeader, ResponseCode.NOT_IMPLEMENTED);
                 return;
             }
 
-            String contentType = URLConnection.getFileNameMap().getContentTypeFor(requestFile.getName());
+            if (rootPath == null) { // 실행 파라미터가 없는경우
+                this.rootPath = ServerConfig.getInstance().appBasePath(requestHeader.host());
+            }
+            responseFile = new File(rootPath, requestHeader.url());
+            if (!responseFile.getCanonicalPath().startsWith(rootPath)) {
+                sendError(outputStream, requestHeader, ResponseCode.FORBIDDEN);
+                return;
+            }
 
+            if (responseFile.getCanonicalPath().equals(rootPath)) {
+                responseFile = new File(rootPath, indexFileName);
+            }
+            String contentType = URLConnection.getFileNameMap().getContentTypeFor(responseFile.getName());
             if (contentType == null) {
                 if (sendServlet(outputStream, requestHeader)) {
                     return;
                 }
             }
-
             sendFile(contentType, outputStream, requestHeader);
 
         } catch (IOException ex) {
             logger.log(Level.WARNING, "Error talking to " + connection.getRemoteSocketAddress(), ex);
         } catch (Exception ex) {
-            logger.warning("Exception");
+            logger.log(Level.WARNING, "Exception ", ex);
         } finally {
             try {
                 connection.close();
@@ -89,61 +91,64 @@ public class RequestProcessor implements Runnable {
     private boolean sendServlet(OutputStream outputStream, RequestHeader requestHeader) throws IOException {
         Writer writer = new OutputStreamWriter(outputStream);
         try {
-            String className = requestHeader.url(); // TODO rootDirectory??
+            String className = requestHeader.url();
             Class<?> clazz = Class.forName(className);
+            if (!SimpleServlet.class.isAssignableFrom(clazz)) {
+                return false;
+            }
 
-            Constructor<?> constructor = clazz.getConstructor();
-            Object servlet = constructor.newInstance();
-            Method clazzMethod = clazz.getMethod("doGet", HttpServletRequest.class, HttpServletResponse.class);
+            Object servlet = clazz.getConstructor().newInstance();
+            Method clazzMethod = clazz.getMethod(SimpleServlet.GET_METHOD, HttpServletRequest.class, HttpServletResponse.class);
 
-            HttpServletRequest req = new HttpServletRequest();
+            HttpServletRequest req = new HttpServletRequest(requestHeader.parameter());
             Writer responseWriter = new StringWriter();
             HttpServletResponse res = new HttpServletResponse(responseWriter);
 
             clazzMethod.invoke(servlet, req, res);
 
             if (requestHeader.isHttpRequest()) {
-                new ResponseHeader(requestHeader.version() + " 200 OK", "text/plain; charset=utf-8", responseWriter.toString().getBytes().length)
+                new ResponseHeader(requestHeader.version(), ResponseCode.OK, SERVLET_RESPONSE_CONTENT_TYPE, responseWriter.toString().getBytes().length)
                     .writeHeader(outputStream);
             }
 
             writer.write(responseWriter.toString());
             writer.flush();
+
             return true;
+
         } catch (ClassNotFoundException e) {
-            logger.warning("Class Not Found!!!!!!!!!!!!!!");
-            sendError(outputStream, requestHeader, ErrorCode.NOT_FOUND);
+            logger.info("Not found in Servlets");
         } catch (InvocationTargetException | NoSuchMethodException | InstantiationException | IllegalAccessException e) {
-            logger.warning("!!!!!!!!!!!!!!!!");
+            throw new RuntimeException("Servlet instantiation error");
         }
 
         return false;
     }
 
     private void sendFile(String contentType, OutputStream outputStream, RequestHeader requestHeader) throws IOException {
-        if (FORBIDDEN_CONTENT_TYPES.contains(contentType)) {
-            sendError(outputStream, requestHeader, ErrorCode.FORBIDDEN);
+        if (contentType != null && FORBIDDEN_CONTENT_TYPES.contains(contentType)) {
+            sendError(outputStream, requestHeader, ResponseCode.FORBIDDEN);
+            return;
+        }
+        if (!responseFile.canRead()) {
+            sendError(outputStream, requestHeader, ResponseCode.NOT_FOUND);
             return;
         }
 
-        if (requestFile.canRead()) {
-            byte[] theData = Files.readAllBytes(requestFile.toPath());
-            if (requestHeader.version().startsWith("HTTP/")) {
-                new ResponseHeader(requestHeader.version() + " 200 OK", contentType, theData.length)
-                    .writeHeader(outputStream);
-            }
-            outputStream.write(theData);
-            outputStream.flush();
-        } else {
-            sendError(outputStream, requestHeader, ErrorCode.NOT_FOUND);
+        byte[] theData = Files.readAllBytes(responseFile.toPath());
+        if (requestHeader.isHttpRequest()) {
+            new ResponseHeader(requestHeader.version(), ResponseCode.OK, contentType, theData.length)
+                .writeHeader(outputStream);
         }
+        outputStream.write(theData);
+        outputStream.flush();
     }
 
-    private void sendError(OutputStream outputStream, RequestHeader requestHeader, ErrorCode errorCode) throws IOException {
-        byte[] bytes = getClass().getClassLoader().getResourceAsStream(ServerConfig.getInstance().errorPagePath(requestHeader.host(), errorCode)).readAllBytes();
+    private void sendError(OutputStream outputStream, RequestHeader requestHeader, ResponseCode responseCode) throws IOException {
+        byte[] bytes = getClass().getClassLoader().getResourceAsStream(ServerConfig.getInstance().errorPagePath(requestHeader.host(), responseCode)).readAllBytes();
 
         if (requestHeader.isHttpRequest()) {
-            new ResponseHeader(requestHeader.version() + " " + errorCode.response, "text/html", bytes.length)
+            new ResponseHeader(requestHeader.version(), responseCode, ERROR_RESPONSE_CONTENT_TYPE, bytes.length)
                 .writeHeader(outputStream);
         }
         outputStream.write(bytes);
