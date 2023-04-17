@@ -2,18 +2,15 @@
   "port": "8080",
   "hosts": [
     {
-      "name": "localhost",
-      "appBase": "webapps",
-      "errorReportValve": {
-        "404": "html/404.html"
-      }
-    },
-    {
       "name": "www.dev1.com",
       "appBase": "dev1",
       "errorReportValve": {
         "404": "dev1/404.html"
       }
+    },
+    {
+      "name": "www.dev2.com",
+      "appBase": "webapps"
     }
   ]
 }

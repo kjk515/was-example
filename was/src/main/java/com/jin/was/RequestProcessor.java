@@ -112,6 +112,7 @@ public class RequestProcessor implements Runnable {
             clazzMethod.invoke(servlet, req, res);
 
         } catch (InvocationTargetException | NoSuchMethodException | InstantiationException | IllegalAccessException e) {
+            sendError(outputStream, requestHeader, ResponseCode.SERVER_ERROR);
             throw new RuntimeException("Servlet instantiation error", e);
         }
 
