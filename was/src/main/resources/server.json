@@ -1,0 +1,29 @@
+{
+  "port": "8080",
+  "hosts": [
+    {
+      "name": "localhost",
+      "appBase": "webapps",
+      "accessLogValve": {
+        "directory": "logs",
+        "prefix": "localhost_access_log",
+        "suffix": ".txt"
+      },
+      "errorReportValve": {
+        "404": "html/404.html"
+      }
+    },
+    {
+      "name": "www.dev1.com",
+      "appBase": "dev1",
+      "accessLogValve": {
+        "directory": "logs",
+        "prefix": "localhost_access_log",
+        "suffix": ".txt"
+      },
+      "errorReportValve": {
+        "404": "dev1/404.html"
+      }
+    }
+  ]
+}

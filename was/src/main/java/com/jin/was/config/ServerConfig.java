@@ -27,7 +27,7 @@ public record ServerConfig(
     }
 
     private static final ServerConfig INSTANCE;
-    private static final String CONFIG_PATH = "conf/server.json";
+    private static final String CONFIG_PATH = "server.json";
     private static final String DEFAULT_ERROR_PAGE_ROOT = "html";
     private static final String DEFAULT_APP_BASE = "webapps";
 
