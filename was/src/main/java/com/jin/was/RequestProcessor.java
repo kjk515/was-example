@@ -148,7 +148,7 @@ public class RequestProcessor implements Runnable {
     }
 
     private void sendError(OutputStream outputStream, RequestHeader requestHeader, ResponseCode responseCode) throws IOException {
-        byte[] bytes = getClass().getClassLoader().getResourceAsStream(ServerConfig.getInstance().errorPagePath(requestHeader.host(), responseCode)).readAllBytes();
+        byte[] bytes = ServerConfig.getInstance().errorPageStream(requestHeader.host(), responseCode).readAllBytes();
 
         if (requestHeader.isHttpRequest()) {
             new ResponseHeader(requestHeader.version(), responseCode, ERROR_RESPONSE_CONTENT_TYPE, bytes.length)

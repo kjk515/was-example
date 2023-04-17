@@ -1,13 +1,13 @@
 package com.jin.was.config;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.jin.was.ResponseCode;
-import com.jin.was.util.PathUtils;
 
 public record ServerConfig(
     int port,
@@ -53,19 +53,19 @@ public record ServerConfig(
             appBase = DEFAULT_APP_BASE;
         }
 
-        return getClass().getResource(PathUtils.affixRootPath(appBase)).getPath();
+        return getClass().getClassLoader().getResource(appBase).getPath();
     }
 
-    public String errorPagePath(String hostName, ResponseCode responseCode) {
+    public InputStream errorPageStream(String hostName, ResponseCode responseCode) {
         Optional<Host> host = this.hosts.stream().filter(it -> it.name.equals(hostName)).findFirst();
         String errorPage = null;
         if (host.isPresent() && host.get().errorReportValve() != null) {
             errorPage = host.get().errorReportValve().get(responseCode.code());
         }
         if (errorPage == null) {
-            errorPage = DEFAULT_ERROR_PAGE_ROOT;
+            errorPage = DEFAULT_ERROR_PAGE_ROOT + "/" + responseCode.code() + ".html";
         }
 
-        return errorPage + PathUtils.affixRootPath(responseCode.code()) + ".html";
+        return getClass().getClassLoader().getResourceAsStream(errorPage);
     }
 }
