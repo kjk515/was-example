@@ -33,9 +33,9 @@ public class RequestProcessor implements Runnable {
     private static final String SERVLET_RESPONSE_CONTENT_TYPE = "text/plain; charset=utf-8";
     private static final String ERROR_RESPONSE_CONTENT_TYPE = "text/html; charset=utf-8";
 
+    private final Socket connection;
     private String rootPath;
     private String indexFileName = "index.html";
-    private Socket connection;
     private File responseFile;
 
     public RequestProcessor(String rootPath, String indexFileName, Socket connection) {
@@ -57,7 +57,7 @@ public class RequestProcessor implements Runnable {
                 return;
             }
 
-            if (rootPath == null) { // 실행 파라미터가 없는경우
+            if (rootPath == null) {
                 this.rootPath = ServerConfig.getInstance().appBasePath(requestHeader.host());
             }
             responseFile = new File(rootPath, requestHeader.url());
@@ -70,10 +70,8 @@ public class RequestProcessor implements Runnable {
                 responseFile = new File(rootPath, indexFileName);
             }
             String contentType = URLConnection.getFileNameMap().getContentTypeFor(responseFile.getName());
-            if (contentType == null) {
-                if (sendServlet(outputStream, requestHeader)) {
-                    return;
-                }
+            if (contentType == null && sendServlet(outputStream, requestHeader)) {
+                return;
             }
             sendFile(contentType, outputStream, requestHeader);
 
