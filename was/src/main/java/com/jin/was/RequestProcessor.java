@@ -86,7 +86,7 @@ public class RequestProcessor implements Runnable {
             clazzMethod.invoke(servlet, req, res);
 
             if (requestHeader.isHttpRequest()) {
-                new ResponseHeader(requestHeader.version() + " 200 OK", "text/plain", responseWriter.toString().getBytes().length)
+                new ResponseHeader(requestHeader.version() + " 200 OK", "text/plain; charset=utf-8", responseWriter.toString().getBytes().length)
                     .writeHeader(outputStream);
             }
 
