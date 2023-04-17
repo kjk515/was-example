@@ -1,19 +1,41 @@
 <?xml version="1.0" encoding="UTF-8"?>
 
 <configuration>
-<!--    <timestamp key="BY_DATE" datePattern="yyyy-MM-dd"/>-->
+    <timestamp key="DATE" datePattern="yyyy-MM-dd"/>
     <property name="LOG_PATTERN"
-              value="[%d{yyyy-MM-dd HH:mm:ss}:%-4relative] %highlight([%-5level]) %green([%thread]) %boldWhite([%logger.%M:%yellow(%L)]) - %msg%n"/>
+              value="[%d{yyyy-MM-dd HH:mm:ss}:%-4relative] %highlight([%-5level]) %green([%thread]) %boldWhite([%logger.%M:%yellow(%L)]) - %msg%n" />
+    <property name="LOG_PATH" value="./log/was" />
 
     <appender name="CONSOLE" class="ch.qos.logback.core.ConsoleAppender">
         <encoder>
             <pattern>${LOG_PATTERN}</pattern>
-<!--            <pattern>[%-5level] %d{HH:mm:ss.SSS} [%.10thread] %logger{15}:%L - %msg%n</pattern>-->
             <charset>UTF-8</charset>
         </encoder>
     </appender>
 
+    <appender name="FILE" class="ch.qos.logback.core.rolling.RollingFileAppender">
+        <file>${LOG_PATH}.${DATE}.log</file>
+        <append>true</append>
+        <rollingPolicy class="ch.qos.logback.core.rolling.SizeAndTimeBasedRollingPolicy">
+            <fileNamePattern>${LOG_PATH}.%d{yyyy-MM-dd}.%i.log</fileNamePattern>
+            <maxFileSize>100MB</maxFileSize>
+            <maxHistory>30</maxHistory>
+            <totalSizeCap>5GB</totalSizeCap>
+        </rollingPolicy>
+        <encoder>
+            <pattern>${LOG_PATTERN}</pattern>
+            <charset>UTF-8</charset>
+        </encoder>
+    </appender>
+
+    <appender name="ASYNC_FILE" class="ch.qos.logback.classic.AsyncAppender">
+        <discardingThreshold>50</discardingThreshold>
+        <queueSize>500</queueSize>
+        <appender-ref ref="FILE" />
+    </appender>
+
     <root level="INFO">
-        <appender-ref ref="CONSOLE"/>
+        <appender-ref ref="CONSOLE" />
+        <appender-ref ref="ASYNC_FILE" />
     </root>
 </configuration>
