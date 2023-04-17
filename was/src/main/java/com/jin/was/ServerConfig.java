@@ -3,6 +3,7 @@ package com.jin.was;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
@@ -10,30 +11,25 @@ public record ServerConfig(
     List<Host> hosts,
     Connector connector
 ) {
-
     record Host(
         String name,
         String appBase,
         AccessLogValve accessLogValve,
         List<Map<String, String>> errorReportValve
     ) {
-
         record AccessLogValve(
             String directory,
             String prefix,
             String suffix
-        ) {
-
-        }
+        ) {}
     }
 
     record Connector(
         int port
-    ) {
-
-    }
+    ) {}
 
     private static final ServerConfig INSTANCE;
+    private static final String ERROR_PAGE_PATH = "html/";
 
     static {
         try {
@@ -59,9 +55,7 @@ public record ServerConfig(
 
     public String errorPagePath(String hostName, ErrorCode errorCode) {
         Host host = this.hosts.stream().filter(it -> it.name.equals(hostName)).findFirst().get(); // TODO NULL
-        if (host.errorReportValve().isEmpty()) {
-            return "html/" + errorCode.code + ".html";
-        }
-        return "html/" + errorCode.code + ".html";
+        Optional<String> errorPage = host.errorReportValve().stream().map(it -> it.get(errorCode.code)).findFirst();
+        return errorPage.orElseGet(() -> ERROR_PAGE_PATH + errorCode.code + ".html");
     }
 }

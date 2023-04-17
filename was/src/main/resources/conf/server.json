@@ -10,7 +10,7 @@
       },
       "errorReportValve": [
         {
-          "404": "/Users/we/Documents/Java-WAS/dev1/404.html"
+          "404": "html/404.html"
         }
       ]
     },
@@ -24,7 +24,7 @@
       },
       "errorReportValve": [
         {
-          "404": "/Users/we/Documents/Java-WAS/dev1/404.html"
+          "404": "dev1/404.html"
         }
       ]
     }
